@@ -1,0 +1,4 @@
+[package]
+name = "Rendlex_Project"
+version = "0.0.1"
+edition = "2021"

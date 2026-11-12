@@ -1,0 +1,9 @@
+function Calcular() {
+    $valorAtual: i64 = 200;
+    $taxa: i64 = 6;
+
+}
+
+Show($valorAtual);
+
+
