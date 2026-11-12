@@ -23,17 +23,120 @@ impl Parser {
             constants.push(self.parse_const()?);
         }
 
-
-
+        let mut functions = Vec::new();
         let mut statements = Vec::new();
         while !self.is_at_end() {
-            if self.current().kind == TokenKind::Const {
-                return Err(self.error_code("RX101", "constants must be declared at the top of the file"));
+            match self.current().kind.clone() {
+                TokenKind::Const => {
+                    return Err(self.error_code("RX101", "constants must be declared at the top of the file"));
+                }
+                TokenKind::Function => functions.push(self.parse_function()?),
+                _ => statements.push(self.parse_statement()?),
             }
-            statements.push(self.parse_statement()?);
         }
-        Ok(Program { constants, statements })
+        Ok(Program { constants, functions, statements })
     }
+
+
+    fn parse_type(&mut self) -> Result<Type, Diagnostic> {
+        match self.current().kind.clone() {
+            TokenKind::Identifier(name) => {
+                let ty = Type::from_name(&name).ok_or_else(|| {
+                    self.error_code("RX300", &format!("unknown type '{name}'"))
+                })?;
+                self.advance();
+                Ok(ty)
+            }
+            _ => Err(self.error("expected a type name")),
+        }
+    }
+
+    fn parse_function(&mut self) -> Result<FunctionDecl, Diagnostic> {
+        let start = self.advance(); // consome `function`
+
+        let name = match self.current().kind.clone() {
+            TokenKind::Identifier(n) => n,
+            _ => return Err(self.error("expected a function name")),
+        };
+        self.advance();
+
+        self.expect(TokenKind::LeftParen, "expected '(' after the function name")?;
+        let mut params = Vec::new();
+        if self.current().kind != TokenKind::RightParen {
+            loop {
+                let param_name = match self.current().kind.clone() {
+                    TokenKind::Variable(n) => n,
+                    _ => return Err(self.error("expected a parameter like $name: int64")),
+                };
+                self.advance();
+                self.expect(TokenKind::Colon, "expected ':' and a type after the parameter name")?;
+                let ty = self.parse_type()?;
+                params.push(Param { name: param_name, ty });
+                if !self.eat(&TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+        self.expect(TokenKind::RightParen, "expected ')' after the parameters")?;
+
+        let return_type = if self.eat(&TokenKind::Colon) { Some(self.parse_type()?) } else { None };
+
+        // break/continue dentro da função não enxergam laços de fora
+        let saved_depth = self.loop_depth;
+        self.loop_depth = 0;
+        let body = self.parse_block()?;
+        self.loop_depth = saved_depth;
+
+        self.eat(&TokenKind::Semicolon); // o `;` depois do `}` é opcional
+
+        Ok(FunctionDecl { name, params, return_type, body, line: start.line, column: start.column })
+    }
+
+    fn parse_block(&mut self) -> Result<Vec<Stmt>, Diagnostic> {
+        self.expect(TokenKind::LeftBrace, "expected '{'")?;
+        let mut body = Vec::new();
+        while self.current().kind != TokenKind::RightBrace {
+            if self.is_at_end() {
+                return Err(self.error("expected '}' before the end of the file"));
+            }
+            body.push(self.parse_statement()?);
+        }
+        self.advance(); // consome `}`
+        Ok(body)
+    }
+
+    fn parse_condition_and_block(&mut self) -> Result<(Expr, Vec<Stmt>), Diagnostic> {
+        self.expect(TokenKind::LeftParen, "expected '(' before the condition")?;
+        let condition = self.parse_expression()?;
+        self.expect(TokenKind::RightParen, "expected ')' after the condition")?;
+        let body = self.parse_block()?;
+        Ok((condition, body))
+    }
+
+    fn parse_if(&mut self) -> Result<Stmt, Diagnostic> {
+        let start = self.advance(); // consome `if`
+        let mut branches = vec![self.parse_condition_and_block()?];
+        let mut else_body = None;
+
+        loop {
+            if self.eat(&TokenKind::Elseif) {
+                branches.push(self.parse_condition_and_block()?);
+            } else if self.eat(&TokenKind::Else) {
+                if self.current().kind == TokenKind::If {
+                    return Err(self.error("use 'elseif' instead of 'else if'"));
+                }
+                else_body = Some(self.parse_block()?);
+                break;
+            } else {
+                break;
+            }
+        }
+        Ok(Stmt::If { branches, else_body, line: start.line, column: start.column })
+    }
+
+
+
+
 
     fn parse_const(&mut self) -> Result<ConstDecl, Diagnostic>  {
         let start = self.advance(); // consome `const`
@@ -163,6 +266,30 @@ impl Parser {
                 Ok(Stmt::Stop)
             }
 
+            TokenKind::If => self.parse_if(),
+            TokenKind::Return => {
+                let start = self.advance();
+                let value = if self.current().kind == TokenKind::Semicolon {
+                    None
+                } else {
+                    Some(self.parse_expression()?)
+                };
+                self.expect(TokenKind::Semicolon, "expected ';' after return")?;
+                Ok(Stmt::Return { value, line: start.line, column: start.column })
+            }
+            TokenKind::Identifier(_) => {
+                // chamada de função como comando: Log($x);
+                let expr = self.parse_expression()?;
+                self.expect(TokenKind::Semicolon, "expected ';' after the expression")?;
+                Ok(Stmt::Expr(expr))
+            }
+
+
+
+
+
+
+
             // Todo o resto: qualquer token que não começa um comando
             _ => Err(self.error("expected a statement")),
         }
@@ -247,9 +374,27 @@ impl Parser {
                 self.expect(TokenKind::RightParen, "expected ')'")?;
                 Ok(inner)
             }
-            TokenKind::Identifier(name) if is_uppercase_name(&name) => {
-                self.advance();
-                Ok(Expr::Constant(name))
+
+            TokenKind::Identifier(name) => {
+                let start = self.advance();
+                if self.eat(&TokenKind::LeftParen) {
+                    let mut args = Vec::new();
+                    if self.current().kind != TokenKind::RightParen {
+                        loop {
+                            args.push(self.parse_expression()?);
+                            if !self.eat(&TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    self.expect(TokenKind::RightParen, "expected ')' after the arguments")?;
+                    Ok(Expr::Call { name, args, line: start.line, column: start.column })
+                } else if is_uppercase_name(&name) {
+                    Ok(Expr::Constant(name))
+                } else {
+                    Err(Diagnostic::new("RX100", format!("unknown name '{name}'"), start.line, start.column)
+                        .help("variables start with '$', constants are UPPERCASE, calls need '(...)'"))
+                }
             }
 
             _ => Err(self.error("expected an expression")),

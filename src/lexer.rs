@@ -162,6 +162,7 @@ impl<'a> Lexer<'a> {
             "const" => TokenKind::Const,
             "break" => TokenKind::Break,
             "continue" => TokenKind::Continue,
+            "elseif" => TokenKind::Elseif,
             "stop" => TokenKind::Stop,
             _ => TokenKind::Identifier(text),
         }

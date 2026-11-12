@@ -11,7 +11,7 @@ pub enum TokenKind {
     Identifier(String), // echo não, isso é palavra-chave; aqui entram text, order, etc.
     // Palavras-chave
     Show, If, Else, While, Function, Return, True, False,
-    Const, Break, Continue, Stop,
+    Const, Break, Continue, Stop, Elseif,
     // Operadores
     Plus, Minus, Star, Slash,
     Assign, EqualEqual, Bang, BangEqual,

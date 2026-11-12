@@ -8,6 +8,7 @@ pub enum Value {
     Float(f64),
     Str(Rc<str>),
     Bool(bool),
+    Unit,
 }
 
 impl Value {
@@ -17,6 +18,7 @@ impl Value {
             Value::Float(_) => "float",
             Value::Str(_) => "string",
             Value::Bool(_) => "bool",
+            Value::Unit => "unit",
         }
     }
 }
@@ -28,6 +30,7 @@ impl fmt::Display for Value {
             Value::Float(n) => write!(f, "{n}"),
             Value::Str(s) => write!(f, "{s}"),
             Value::Bool(b) => write!(f, "{b}"),
+            Value::Unit => write!(f, "unit"),
         }
     }
 }

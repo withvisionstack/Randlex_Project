@@ -42,6 +42,17 @@ fn main() {
         std::process::exit(2);
     });
 
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase());
+    if !matches!(extension.as_deref(), Some("rdx" | "rx" | "hx")) {
+        eprintln!("error: '{path}' is not a Rendlex file (valid extensions: .rdx, .rx, .hx)");
+        std::process::exit(2);
+    }
+
+
+
     let tokens = Lexer::new(&source)
         .tokenize()
         .unwrap_or_else(|d| fail(&d, path, &source, development));

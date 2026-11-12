@@ -180,6 +180,15 @@ Wrong:   $total = 200;
 Correct: $total: int64 = 200;
          $total = 300;   // later changes are fine"),
 
+        "RX307" => Some("RX307: function already declared\n\nEach function name can be declared only once."),
+        "RX308" => Some("RX308: duplicate parameter\n\nTwo parameters of the same function have the same name."),
+        "RX309" => Some("RX309: undefined function\n\nThe function was never declared. Check the spelling."),
+        "RX310" => Some("RX310: wrong number of arguments\n\nThe call must pass exactly as many arguments as the function declares."),
+        "RX311" => Some("RX311: 'return' outside a function\n\n'return' only makes sense inside 'function'. To end the whole program, use 'stop'."),
+        "RX312" => Some("RX312: missing return\n\nA function with a return type must return on every path.\n\nWrong:   if ($x < 1) { return \"a\"; }\nCorrect: if ($x < 1) { return \"a\"; } else { return \"b\"; }"),
+        "RX313" => Some("RX313: wrong return\n\nThe 'return' does not match the function's declared return type."),
+        "RX314" => Some("RX314: function has no value\n\nA function without a return type cannot be used inside an expression."),
+
         _ => None,
     }
 }
