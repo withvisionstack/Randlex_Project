@@ -1,3 +1,3 @@
-*.rdx linguist-language=Custom
-*.hx linguist-language=Custom
-*.rx linguist-language=Custom
+*.rdx linguist-language=Rust
+*.hx linguist-language=Rust
+*.rx linguist-language=Rust
