@@ -1,10 +1,14 @@
-fn main(){
-    let nome: str = "pedro";
-    let idade: i16 =45;
-    let dados = nome.clone();
-    let pessoa =  idade.clone();
-    let cadastro = pessoa.clone();
+struct Pessoa {
+    nome: String,
+    idade: i16,
+}
 
+fn main() {
+    let pessoa = Pessoa {
+        nome: String::from("Pedro"),
+        idade: 45,
+    };
 
-    println!("{:?}", cadastro);
+    println!("Nome: {}", pessoa.nome);
+    println!("Idade: {}", pessoa.idade);
 }
